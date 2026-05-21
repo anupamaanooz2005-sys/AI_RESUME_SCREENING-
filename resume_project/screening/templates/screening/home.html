@@ -1,0 +1,67 @@
+{% extends "screening/base.html" %}
+
+{% block title %}ResumeAI — Home{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="hero" style="text-align:center;max-width:600px;margin:0 auto;padding:5rem 0 3rem">
+    <h1 style="font-size:3rem">Hire smarter.<br><em>Screen faster.</em></h1>
+    <p style="margin:0 auto 2.5rem;font-size:1.05rem">
+      AI-powered resume screening for candidates and HR teams. Upload, analyze, and rank in seconds.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;max-width:560px;margin:0 auto">
+
+      <a href="/candidate/" style="display:block">
+        <div class="card" style="padding:2rem;text-align:left;transition:transform 0.2s,box-shadow 0.2s;cursor:pointer"
+             onmouseenter="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 32px rgba(26,58,92,0.12)'"
+             onmouseleave="this.style.transform='';this.style.boxShadow=''">
+          <div style="width:48px;height:48px;border-radius:12px;background:#e6eef8;display:flex;align-items:center;justify-content:center;margin-bottom:1rem">
+            <i class="ti ti-user" style="font-size:1.5rem;color:var(--accent)" aria-hidden="true"></i>
+          </div>
+          <h3 style="font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--accent);margin-bottom:0.4rem">Candidate Portal</h3>
+          <p style="font-size:0.85rem;color:var(--ink2);line-height:1.6">Upload your resume and get instant AI analysis — skills found, missing skills, and category prediction.</p>
+          <div style="margin-top:1rem;font-size:0.82rem;color:var(--accent2);font-weight:500;display:flex;align-items:center;gap:5px">
+            Analyze my resume <i class="ti ti-arrow-right" aria-hidden="true"></i>
+          </div>
+        </div>
+      </a>
+
+      <a href="/hr/" style="display:block">
+        <div class="card" style="padding:2rem;text-align:left;transition:transform 0.2s,box-shadow 0.2s;cursor:pointer"
+             onmouseenter="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 32px rgba(26,58,92,0.12)'"
+             onmouseleave="this.style.transform='';this.style.boxShadow=''">
+          <div style="width:48px;height:48px;border-radius:12px;background:#fff5f0;display:flex;align-items:center;justify-content:center;margin-bottom:1rem">
+            <i class="ti ti-users-group" style="font-size:1.5rem;color:var(--accent2)" aria-hidden="true"></i>
+          </div>
+          <h3 style="font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--accent);margin-bottom:0.4rem">HR Dashboard</h3>
+          <p style="font-size:0.85rem;color:var(--ink2);line-height:1.6">Upload batch resumes, set keywords and filters, and get a ranked shortlist with match scores.</p>
+          <div style="margin-top:1rem;font-size:0.82rem;color:var(--accent2);font-weight:500;display:flex;align-items:center;gap:5px">
+            Screen candidates <i class="ti ti-arrow-right" aria-hidden="true"></i>
+          </div>
+        </div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- Feature strips -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;padding-bottom:4rem;max-width:700px;margin:0 auto">
+    {% for icon,label,desc in features %}{% empty %}{% endfor %}
+    <div style="text-align:center;padding:1.25rem">
+      <i class="ti ti-sparkles" style="font-size:1.8rem;color:var(--accent2);margin-bottom:0.5rem;display:block" aria-hidden="true"></i>
+      <h4 style="font-size:0.88rem;font-weight:500;color:var(--ink);margin-bottom:0.3rem">NLP Analysis</h4>
+      <p style="font-size:0.8rem;color:var(--ink3);line-height:1.6">Keyword-based NLP engine extracts and scores every skill automatically.</p>
+    </div>
+    <div style="text-align:center;padding:1.25rem">
+      <i class="ti ti-chart-bar" style="font-size:1.8rem;color:var(--accent2);margin-bottom:0.5rem;display:block" aria-hidden="true"></i>
+      <h4 style="font-size:0.88rem;font-weight:500;color:var(--ink);margin-bottom:0.3rem">Smart Ranking</h4>
+      <p style="font-size:0.8rem;color:var(--ink3);line-height:1.6">Weighted scores combine category match and keyword hits to rank candidates.</p>
+    </div>
+    <div style="text-align:center;padding:1.25rem">
+      <i class="ti ti-share" style="font-size:1.8rem;color:var(--accent2);margin-bottom:0.5rem;display:block" aria-hidden="true"></i>
+      <h4 style="font-size:0.88rem;font-weight:500;color:var(--ink);margin-bottom:0.3rem">Shareable Link</h4>
+      <p style="font-size:0.8rem;color:var(--ink3);line-height:1.6">Share the portal via WhatsApp, Email, or LinkedIn with one click.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

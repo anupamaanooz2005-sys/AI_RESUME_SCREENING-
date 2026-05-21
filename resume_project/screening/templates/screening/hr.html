@@ -1,0 +1,270 @@
+{% extends "screening/base.html" %}
+
+{% block title %}HR Dashboard — ResumeAI{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="hero">
+    <h1>Screen & rank<br><em>candidates</em> at scale.</h1>
+    <p>Upload multiple resumes, set required keywords and filters, and get a ranked shortlist with AI match scores instantly.</p>
+  </div>
+
+  <!-- Top Grid: Upload + Filters -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem">
+
+    <!-- Upload Card -->
+    <div class="card-sm">
+      <h3 style="font-size:0.9rem;font-weight:500;color:var(--ink);margin-bottom:0.9rem;display:flex;align-items:center;gap:7px">
+        <i class="ti ti-files" style="color:var(--accent2)" aria-hidden="true"></i> Bulk Upload Resumes
+      </h3>
+      <div class="upload-zone" id="hr-zone" style="padding:1.5rem"
+           ondragover="dz(event,true)" ondragleave="dz(event,false)" ondrop="dzDrop(event)">
+        <input type="file" accept=".pdf,.txt,.doc,.docx" multiple id="hr-file-input" onchange="addFiles(this.files)">
+        <i class="ti ti-cloud-upload uz-icon" style="font-size:2rem;margin-bottom:0.5rem" aria-hidden="true"></i>
+        <h3 style="font-size:0.88rem">Drop multiple resumes here</h3>
+        <p>PDF, DOC, DOCX, TXT</p>
+      </div>
+      <div id="file-list" style="margin-top:0.75rem"></div>
+      <div id="file-count" style="font-size:0.8rem;color:var(--ink3);margin-top:0.5rem;text-align:center"></div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="card-sm">
+      <h3 style="font-size:0.9rem;font-weight:500;color:var(--ink);margin-bottom:0.9rem;display:flex;align-items:center;gap:7px">
+        <i class="ti ti-adjustments-horizontal" style="color:var(--accent)" aria-hidden="true"></i> Filter & Rank Settings
+      </h3>
+
+      <div class="divider">job category</div>
+      <select class="form-control" id="cat-select" style="margin-bottom:0.9rem">
+        <option value="">— Any category —</option>
+        {% for cat in categories %}
+        <option>{{ cat }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="divider">required keywords / skills</div>
+      <div id="kw-chips" style="min-height:32px;margin-bottom:0.6rem;display:flex;flex-wrap:wrap"></div>
+      <div style="display:flex;gap:8px;margin-bottom:0.9rem">
+        <input type="text" class="form-control" id="kw-input"
+               placeholder="e.g. python, react, docker…"
+               onkeydown="kwKey(event)" style="flex:1">
+        <button class="btn btn-primary btn-sm" onclick="addKw()">
+          <i class="ti ti-plus" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <div class="divider">minimum match score</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.1rem">
+        <input type="range" min="0" max="100" value="40" id="min-score"
+               oninput="document.getElementById('ms-val').textContent=this.value+'%'"
+               style="flex:1">
+        <span id="ms-val" style="font-size:0.88rem;font-weight:500;color:var(--accent);min-width:38px">40%</span>
+      </div>
+
+      <button class="btn btn-accent btn-full" id="run-btn" onclick="runAnalysis()" disabled>
+        <i class="ti ti-sparkles" aria-hidden="true"></i> Analyze & Rank Candidates
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="hr-loading">
+    <div class="dot-bounce"><span></span><span></span><span></span></div>
+    <p>Screening all resumes with AI…</p>
+  </div>
+
+  <!-- Results -->
+  <div id="hr-results" style="display:none;margin-bottom:3rem"></div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let files=[];
+let keywords=[];
+
+// ── drag-drop ──
+function dz(e,on){e.preventDefault();document.getElementById('hr-zone').className='upload-zone'+(on?' dragover':'')}
+function dzDrop(e){e.preventDefault();addFiles(e.dataTransfer.files);document.getElementById('hr-zone').className='upload-zone'}
+function addFiles(flist){
+  for(const f of flist){
+    if(!files.find(x=>x.name===f.name))files.push(f);
+  }
+  renderFiles();
+  document.getElementById('run-btn').disabled=files.length===0;
+}
+function removeFile(name){
+  files=files.filter(f=>f.name!==name);
+  renderFiles();
+  document.getElementById('run-btn').disabled=files.length===0;
+}
+function renderFiles(){
+  const el=document.getElementById('file-list');
+  el.innerHTML=files.map(f=>`
+<div class="file-item">
+  <i class="ti ti-file-text" aria-hidden="true"></i>
+  <span title="${f.name}">${f.name}</span>
+  <button class="remove-btn" onclick="removeFile('${f.name}')" aria-label="Remove ${f.name}">
+    <i class="ti ti-x" aria-hidden="true"></i>
+  </button>
+</div>`).join('');
+  const c=document.getElementById('file-count');
+  c.textContent=files.length?`${files.length} file${files.length>1?'s':''} selected`:'';
+}
+
+// ── keywords ──
+function kwKey(e){if(e.key==='Enter'||e.key===','){e.preventDefault();addKw()}}
+function addKw(){
+  const inp=document.getElementById('kw-input');
+  const val=inp.value.trim().toLowerCase().replace(/,/g,'');
+  if(val&&!keywords.includes(val)){keywords.push(val);renderChips();}
+  inp.value='';
+}
+function removeKw(k){keywords=keywords.filter(x=>x!==k);renderChips();}
+function renderChips(){
+  document.getElementById('kw-chips').innerHTML=keywords.map(k=>`
+<span class="chip">${k}
+  <button onclick="removeKw('${k}')" aria-label="Remove ${k}">×</button>
+</span>`).join('');
+}
+
+// ── analyze ──
+function runAnalysis(){
+  if(!files.length)return;
+  document.getElementById('hr-loading').style.display='block';
+  document.getElementById('hr-results').style.display='none';
+  document.getElementById('run-btn').disabled=true;
+
+  const fd=new FormData();
+  files.forEach(f=>fd.append('resumes',f));
+  fd.append('keywords',keywords.join(','));
+  fd.append('category',document.getElementById('cat-select').value);
+  fd.append('min_score',document.getElementById('min-score').value);
+
+  // get CSRF token from cookie
+  const csrf=document.cookie.split(';').find(c=>c.trim().startsWith('csrftoken='));
+  const token=csrf?csrf.split('=')[1].trim():'';
+
+  fetch('/hr/analyze/',{method:'POST',body:fd,headers:{'X-CSRFToken':token}})
+    .then(r=>r.json())
+    .then(data=>{
+      document.getElementById('hr-loading').style.display='none';
+      document.getElementById('run-btn').disabled=false;
+      if(data.error){alert(data.error);return;}
+      renderResults(data.results);
+    })
+    .catch(err=>{
+      document.getElementById('hr-loading').style.display='none';
+      document.getElementById('run-btn').disabled=false;
+      console.error(err);
+      alert('Something went wrong. Please try again.');
+    });
+}
+
+function scoreColor(s){
+  if(s>=70)return'var(--success)';
+  if(s>=40)return'var(--warn)';
+  return'var(--danger)';
+}
+
+function renderResults(results){
+  const minScore=parseInt(document.getElementById('min-score').value);
+  const qualified=results.filter(r=>r.final_score>=minScore);
+  const rejected=results.filter(r=>r.final_score<minScore);
+  const el=document.getElementById('hr-results');
+  el.style.display='block';
+  el.className='fade-in';
+
+  // Summary stats
+  const avgScore=results.length?Math.round(results.reduce((s,r)=>s+r.final_score,0)/results.length):0;
+
+  let html=`
+<div class="card">
+  <div class="card-header">
+    <h2>Screening Results</h2>
+    <span class="badge badge-white">
+      ${qualified.length} qualified &nbsp;·&nbsp; ${rejected.length} below threshold
+    </span>
+  </div>
+  <div class="card-body">
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="sv">${results.length}</div>
+        <div class="sl">Total Resumes</div>
+      </div>
+      <div class="stat-card">
+        <div class="sv" style="color:var(--success)">${qualified.length}</div>
+        <div class="sl">Qualified</div>
+      </div>
+      <div class="stat-card">
+        <div class="sv">${avgScore}%</div>
+        <div class="sl">Avg Score</div>
+      </div>
+    </div>`;
+
+  if(qualified.length===0){
+    html+=`<div style="text-align:center;padding:2rem;color:var(--ink3)">
+      <i class="ti ti-users-group" style="font-size:2.5rem;display:block;margin-bottom:0.75rem;opacity:0.35" aria-hidden="true"></i>
+      <p>No resumes met the minimum score of ${minScore}%.<br>Try lowering the threshold.</p>
+    </div>`;
+  } else {
+    html+=`
+    <div class="divider">ranked shortlist (${qualified.length})</div>
+    <div style="overflow-x:auto">
+    <table class="resume-table">
+      <thead><tr>
+        <th style="width:40px">#</th>
+        <th>Resume</th>
+        <th>Category</th>
+        <th>Score</th>
+        ${keywords.length?'<th>Keywords</th>':''}
+        <th>Top Skills</th>
+      </tr></thead>
+      <tbody>
+        ${qualified.map((r,i)=>`
+        <tr>
+          <td><span class="rank-badge ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n'}">${i+1}</span></td>
+          <td style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">
+            <i class="ti ti-file-text" style="color:var(--accent2);margin-right:5px" aria-hidden="true"></i>${r.name.replace(/\.[^.]+$/,'')}
+          </td>
+          <td><span class="pill pill-blue" style="padding:3px 9px;font-size:0.72rem">${r.category}</span></td>
+          <td>
+            <span style="font-weight:500;color:${scoreColor(r.final_score)}">${r.final_score}%</span>
+            <div style="width:70px;display:inline-block;vertical-align:middle;margin-left:8px">
+              <div class="bar-track"><div class="bar-fill" style="width:${r.final_score}%"></div></div>
+            </div>
+          </td>
+          ${keywords.length?`<td>
+            <span class="pill pill-green" style="padding:3px 8px;font-size:0.72rem">${r.kw_matched.length}/${keywords.length} hit</span>
+            ${r.kw_missing.length?`<span class="pill pill-red" style="padding:3px 8px;font-size:0.72rem" title="Missing: ${r.kw_missing.join(', ')}">−${r.kw_missing.length}</span>`:''}
+          </td>`:''}
+          <td>${r.skills.slice(0,3).map(s=>`<span class="pill pill-gray" style="padding:3px 8px;font-size:0.7rem">${s}</span>`).join('')||'<span style="color:var(--ink3);font-size:0.78rem">—</span>'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  }
+
+  if(rejected.length>0){
+    html+=`
+    <div class="divider" style="margin-top:1.5rem">below threshold (${rejected.length})</div>
+    <div>${rejected.map(r=>`<span class="pill pill-gray" title="${r.final_score}% match">${r.name.replace(/\.[^.]+$/,'')} &middot; ${r.final_score}%</span>`).join('')}</div>`;
+  }
+
+  html+=`
+  </div>
+</div>`;
+  el.innerHTML=html;
+
+  // Animate bars
+  setTimeout(()=>{
+    document.querySelectorAll('.bar-fill').forEach(b=>{
+      const w=b.style.width;b.style.width='0';
+      requestAnimationFrame(()=>requestAnimationFrame(()=>b.style.width=w));
+    });
+  },80);
+}
+</script>
+{% endblock %}

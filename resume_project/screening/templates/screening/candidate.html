@@ -1,0 +1,167 @@
+{% extends "screening/base.html" %}
+
+{% block title %}Candidate Portal — ResumeAI{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="hero">
+    <h1>Analyze your <em>resume</em><br>in seconds.</h1>
+    <p>Upload your PDF, DOC, or TXT resume and get instant AI-powered feedback — job category, matched skills, gaps, and more.</p>
+  </div>
+
+  <div style="max-width:620px">
+
+    {% if error %}
+    <div class="alert alert-danger" style="margin-bottom:1.25rem">
+      <i class="ti ti-alert-triangle" aria-hidden="true"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- Upload Form -->
+    <form method="POST" enctype="multipart/form-data" id="upload-form">
+      {% csrf_token %}
+      <div class="upload-zone" id="upload-zone"
+           ondragover="dz(event,true)" ondragleave="dz(event,false)" ondrop="dzDrop(event)">
+        <input type="file" name="resume" accept=".pdf,.txt,.doc,.docx" onchange="onFile(this)" required>
+        <i class="ti ti-upload uz-icon" aria-hidden="true"></i>
+        <h3 id="uz-label">Drop your resume here or click to browse</h3>
+        <p>PDF, DOC, DOCX, TXT &nbsp;·&nbsp; Max 10 MB</p>
+      </div>
+
+      <div id="file-preview" style="display:none;margin:0.75rem 0">
+        <div class="file-item">
+          <i class="ti ti-file-text" aria-hidden="true"></i>
+          <span id="file-name"></span>
+          <i class="ti ti-check" style="color:var(--success)" aria-hidden="true"></i>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full" style="margin-top:1rem" id="submit-btn" disabled>
+        <i class="ti ti-sparkles" aria-hidden="true"></i> Analyze My Resume
+      </button>
+    </form>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+      <div class="dot-bounce"><span></span><span></span><span></span></div>
+      <p>Analyzing your resume…</p>
+    </div>
+
+    <!-- Result -->
+    {% if result %}
+    <div class="card fade-in" style="margin-top:1.75rem">
+      <div class="card-header">
+        <h2>Analysis Complete</h2>
+        <span class="badge badge-accent">{{ result.category }}</span>
+      </div>
+      <div class="card-body">
+
+        <!-- Score Row -->
+        <div style="display:flex;align-items:center;gap:1.25rem;margin-bottom:1.75rem">
+          <div class="score-circle">
+            <span class="sc-num">{{ result.match_pct }}%</span>
+            <span class="sc-lbl">match</span>
+          </div>
+          <div>
+            <h3 style="font-size:1.05rem;font-weight:500;color:var(--accent);margin-bottom:0.3rem">{{ result.category }}</h3>
+            <p style="font-size:0.86rem;color:var(--ink2);line-height:1.65;max-width:380px">
+              Your resume best aligns with <strong>{{ result.category }}</strong> roles.
+              You matched <strong>{{ result.skills|length }}</strong> skill keywords.
+            </p>
+          </div>
+        </div>
+
+        <!-- Category Breakdown -->
+        {% if result.breakdown %}
+        <div class="divider">category breakdown</div>
+        {% for item in result.breakdown %}
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+          <span style="font-size:0.8rem;color:var(--ink2);min-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ item.name }}</span>
+          <div class="bar-track" style="flex:1"><div class="bar-fill" style="width:{{ item.pct }}%"></div></div>
+          <span style="font-size:0.77rem;color:var(--ink3);min-width:36px;text-align:right">{{ item.pct }}%</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Skills Found -->
+        <div class="divider">skills found ({{ result.skills|length }})</div>
+        <div style="margin-bottom:0.25rem">
+          {% if result.skills %}
+            {% for skill in result.skills %}
+              <span class="pill pill-green"><i class="ti ti-check" style="font-size:10px" aria-hidden="true"></i>{{ skill }}</span>
+            {% endfor %}
+          {% else %}
+            <span style="font-size:0.85rem;color:var(--ink3)">No specific skills detected.</span>
+          {% endif %}
+        </div>
+
+        <!-- Missing Skills -->
+        <div class="divider">skills to add for stronger fit</div>
+        <div>
+          {% if result.missing %}
+            {% for skill in result.missing %}
+              <span class="pill pill-red"><i class="ti ti-x" style="font-size:10px" aria-hidden="true"></i>{{ skill }}</span>
+            {% endfor %}
+          {% else %}
+            <span style="font-size:0.85rem;color:var(--success)">
+              <i class="ti ti-circle-check" aria-hidden="true"></i> Great coverage — no major gaps found!
+            </span>
+          {% endif %}
+        </div>
+
+        <!-- Actions -->
+        <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap">
+          <a href="/candidate/" class="btn btn-outline btn-sm">
+            <i class="ti ti-refresh" aria-hidden="true"></i> Analyze another
+          </a>
+          <a href="/hr/" class="btn btn-outline btn-sm">
+            <i class="ti ti-users-group" aria-hidden="true"></i> HR Dashboard
+          </a>
+        </div>
+
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+  <div style="padding-bottom:3rem"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const form=document.getElementById('upload-form');
+const submitBtn=document.getElementById('submit-btn');
+const loading=document.getElementById('loading');
+
+function dz(e,on){
+  e.preventDefault();
+  document.getElementById('upload-zone').className='upload-zone'+(on?' dragover':'');
+}
+function dzDrop(e){
+  e.preventDefault();
+  const f=e.dataTransfer.files[0];
+  if(f){setFile(f)}
+  document.getElementById('upload-zone').className='upload-zone';
+}
+function onFile(input){if(input.files[0])setFile(input.files[0])}
+function setFile(f){
+  document.getElementById('file-name').textContent=f.name;
+  document.getElementById('file-preview').style.display='block';
+  document.getElementById('uz-label').textContent='✓ '+f.name;
+  submitBtn.disabled=false;
+}
+form.addEventListener('submit',()=>{
+  submitBtn.disabled=true;
+  loading.style.display='block';
+});
+
+// Animate bars on load
+window.addEventListener('load',()=>{
+  document.querySelectorAll('.bar-fill').forEach(b=>{
+    const w=b.style.width;b.style.width='0';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>b.style.width=w));
+  });
+});
+</script>
+{% endblock %}
